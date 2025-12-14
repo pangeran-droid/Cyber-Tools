@@ -7,7 +7,20 @@ import pyautogui
 import keyboard
 import time
 import json
+import subprocess
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
+
+RESET   = "\033[0m"
+BOLD    = "\033[1m"
+
+RED     = "\033[91m"
+GREEN   = "\033[92m"
+YELLOW  = "\033[93m"
+BLUE    = "\033[94m"
+MAGENTA = "\033[95m"
+CYAN    = "\033[96m"
+WHITE   = "\033[97m"
 
 try:
     import keyboard
@@ -134,27 +147,46 @@ def caesar_cipher():
             result += char
     print("Hasil:", result)
 
+
 def website_crawler():
     print("\n--- 6. Website Crawler ---")
 
-    url = input("Masukkan URL (sertakan http/https): ")
-    if not url.startswith(('http://', 'https://')):
+    url = input("Masukkan URL (sertakan http/https): ").strip()
+
+    if not url.startswith(("http://", "https://")):
         print("URL tidak valid. Harap sertakan http:// atau https://")
         return
+
     try:
-        print(f"Mengambil link dari {url}...")
-        r = requests.get(url, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        links = [a.get('href') for a in soup.find_all('a', href=True) if a.get('href')]
-        
+        print(f"\nMengambil link dari {url}...\n")
+
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        links = set()
+
+        for a in soup.find_all("a", href=True):
+            full_url = urljoin(url, a["href"])
+            parsed = urlparse(full_url)
+
+            # hanya link http/https
+            if parsed.scheme in ("http", "https"):
+                links.add(full_url)
+
         if links:
-            print(f"Ditemukan {len(links)} link:")
-            for i, l in enumerate(links[:20]):
-                print(f"{i+1}. {l}")
+            print(f"Ditemukan {len(links)} link:\n")
+            for i, link in enumerate(list(links)[:20], start=1):
+                print(f"{i}. {link}")
+
             if len(links) > 20:
-                print(f"... dan {len(links) - 20} link lainnya.")
+                print(f"\n... dan {len(links) - 20} link lainnya.")
         else:
             print("Tidak ada link ditemukan di halaman ini.")
+
+    except requests.exceptions.Timeout:
+        print("Gagal mengambil halaman: koneksi timeout.")
     except requests.exceptions.RequestException as e:
         print(f"Gagal mengambil halaman: {e}")
     except Exception as e:
@@ -176,35 +208,61 @@ def mac_changer_dummy():
     print(f"  macOS: sudo ifconfig en0 ether {new_mac_sim}")
     print(f"\n[SIMULASI] MAC Address berhasil diubah menjadi {new_mac_sim}")
 
+
 def ping_tester():
     print("\n--- 8. Ping Tester ---")
 
-    host = input("Masukkan host/IP untuk di-ping: ")
-    print(f"Melakukan ping ke {host}...")
+    host = input("Masukkan host/IP untuk di-ping: ").strip()
+    if not host:
+        print(RED + "Host/IP tidak boleh kosong." + RESET)
+        return
 
-    import subprocess
+    print(YELLOW + f"\nMelakukan ping ke {host}...\n" + RESET)
+
     try:
-        # -c for Linux/macOS, -n for Windows
-        cmd = ["ping", "-c", "4", host] if os.name != 'nt' else ["ping", "-n", "4", host]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        print(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Ping gagal: {e.stderr}")
+        # Windows (-n), Linux/macOS (-c)
+        if os.name == "nt":
+            cmd = ["ping", "-n", "4", host]
+        else:
+            cmd = ["ping", "-c", "4", host]
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Output ping asli
+        if result.stdout:
+            print(result.stdout)
+
+        # Status REAL berdasarkan returncode OS
+        if result.returncode == 0:
+            print(GREEN + "STATUS : HOST DAPAT DIJANGKAU ✔" + RESET)
+        else:
+            print(RED + "STATUS : HOST TIDAK DAPAT DIJANGKAU ✖" + RESET)
+            if result.stderr:
+                print(RED + "ERROR  : " + result.stderr.strip() + RESET)
+
     except FileNotFoundError:
-        print("Perintah 'ping' tidak ditemukan. Pastikan sudah terinstal dan ada di PATH Anda.")
+        print(RED + "Perintah 'ping' tidak ditemukan di sistem." + RESET)
     except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
+        print(RED + f"Terjadi kesalahan: {e}" + RESET)
 
 def ip_locator():
     print("\n--- 9. IP Address Locator ---")
 
-    ip = input("Masukkan IP (kosong untuk IP Anda sendiri): ")
-    print(f"Mencari lokasi IP {ip if ip else 'Anda'}...")
+    ip = input("Masukkan IP (kosong untuk IP Anda sendiri): ").strip()
+    target = ip if ip else ""
+
+    print(f"Mencari lokasi IP {target if target else 'Anda'}...\n")
+
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=8).json()
-        if r['status'] == 'success':
+        r = requests.get(f"http://ip-api.com/json/{target}", timeout=8).json()
+        if r.get('status') == 'success':
             for k, v in r.items():
-                print(f"{k.replace('_', ' ').title()}: {v}")
+                print(f"{k.replace('_', ' ').title():20}: {v}")
         else:
             print(f"Gagal menemukan lokasi IP: {r.get('message', 'IP tidak valid atau tidak ditemukan.')}")
     except requests.exceptions.RequestException as e:
@@ -267,28 +325,41 @@ def arp_spoofer_sim_cli():
     print(f"\n[SIMULASI] Komunikasi antara {target_ip} dan {gateway_ip} kini dapat melewati penyerang.")
     print("Penting: Ini hanyalah simulasi, tidak ada perubahan nyata pada jaringan Anda.")
 
+
 def subdomain_finder_sim_cli():
     print("\n--- 13. Subdomain Finder ---")
-    domain = input("Masukkan domain (contoh: example.com): ")
+
+    domain = input("Masukkan domain (contoh: example.com): ").strip()
     if not domain:
         print("Domain tidak boleh kosong.")
         return
-        
-    print(f"Mencari subdomain untuk {domain} (simulasi)...")
-    
-    common_subdomains = ["www", "mail", "ftp", "blog", "dev", "test", "api", "admin", "secure", "panel", "webmail", "store"]
-    found_count = 0
-    
+
+    print(f"\nMencari subdomain untuk {domain}...\n")
+
+    common_subdomains = [
+        "www", "mail", "ftp", "blog", "dev", "test", "api",
+        "admin", "secure", "panel", "webmail", "store"
+    ]
+
+    found = []
+
     for sub in common_subdomains:
         full_domain = f"{sub}.{domain}"
-        if random.random() > 0.4:
-            print(f"  [Ditemukan]: {full_domain}")
-            found_count += 1
-        else:
-            print(f"  [Tidak Ditemukan]: {full_domain}")
+        try:
+            ip = socket.gethostbyname(full_domain)
+            print(f"[Ditemukan] {full_domain} ➜ {ip}")
+            found.append(full_domain)
+        except socket.gaierror:
+            print(f"[Tidak Ditemukan] {full_domain}")
         time.sleep(0.1)
-            
-    print(f"\nSimulasi selesai. Ditemukan {found_count} subdomain (simulasi).")
+
+    print("\n--- Hasil ---")
+    if found:
+        print(f"Ditemukan {len(found)} subdomain:")
+        for d in found:
+            print(f" - {d}")
+    else:
+        print("Tidak ada subdomain yang ditemukan.")
 
 def sql_injection_simulator_cli():
     print("\n--- 14. SQL Injection Simulator ---")
@@ -815,9 +886,46 @@ def automated_osint_tool_sim_cli():
     print("\nSimulasi alat OSINT otomatis selesai.")
     print("Penting: OSINT nyata melibatkan pengumpulan data yang sah dari sumber publik.")
 
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def loading():
+    print(GREEN + "Memuat sistem", end="")
+    for _ in range(3):
+        time.sleep(0.5)
+        print(GREEN + ".", end="")
+    time.sleep(0.5)
+    print(RESET)
+
+def banner():
+    print(CYAN + r"""
+ ██████╗██╗   ██╗██████╗ ███████╗██████╗     ████████╗ ██████╗  ██████╗ ██╗     ███████╗
+██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗    ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██╔════╝
+██║      ╚████╔╝ ██████╔╝█████╗  ██████╔╝       ██║   ██║   ██║██║   ██║██║     ███████╗
+██║       ╚██╔╝  ██╔══██╗██╔══╝  ██╔══██╗       ██║   ██║   ██║██║   ██║██║     ╚════██║
+╚██████╗   ██║   ██████╔╝███████╗██║  ██║       ██║   ╚██████╔╝╚██████╔╝███████╗███████║
+ ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝       ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
+""" + MAGENTA + BOLD + """
+        CYBER SECURITY EDUCATIONAL SIMULATION SUITE
+        ------------------------------------------------
+        ⚠  FOR LEARNING & DEMONSTRATION PURPOSES ONLY
+""" + RESET)
+
+def pause():
+    input(YELLOW + "\nTekan ENTER untuk kembali ke menu..." + RESET)
+    
+def run_feature(func):
+    clear_screen()
+    banner()
+    func()
+    pause() 
+
 def menu():
     while True:
-        print("""
+        clear_screen()
+        banner()
+
+        print(WHITE + """
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                                                   CYBER TOOLS                                                                 ║
 ║                                                           Educational / Simulation Suite                                                      ║
@@ -834,48 +942,84 @@ def menu():
 ║        8. Ping Tester                         ║        18. Email Bomber                       ║        28. Advanced DNS Spoofing              ║
 ║        9. IP Address Locator                  ║        19. Webcam Hacking Simulator           ║        29. Fileless Malware                   ║
 ║        10. Screenshot Taker                   ║        20. Ransomware Simulation              ║        30. Automated OSINT Tool               ║
-║        0. Keluar                              ║        0. Keluar                              ║        0. Keluar                              ║
+║═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════║
+║                                                           0. Keluar dari Program                                                              ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
-        """)
-        choice = input("Pilih menu: ")
+        """ + RESET)
+        
+        choice = input(YELLOW + "Pilih menu ➜ " + RESET)
         print("-" * 30)
 
-        if choice == "1": keylogger()
-        elif choice == "2": port_scanner()
-        elif choice == "3": password_generator()
-        elif choice == "4": brute_force_dummy()
-        elif choice == "5": caesar_cipher()
-        elif choice == "6": website_crawler()
-        elif choice == "7": mac_changer_dummy()
-        elif choice == "8": ping_tester()
-        elif choice == "9": ip_locator()
-        elif choice == "10": screenshot_taker()
-        elif choice == "11": packet_sniffer_sim_cli()
-        elif choice == "12": arp_spoofer_sim_cli()
-        elif choice == "13": subdomain_finder_sim_cli()
-        elif choice == "14": sql_injection_simulator_cli()
-        elif choice == "15": dns_spoofer_sim_cli()
-        elif choice == "16": steganography_tool_sim_cli()
-        elif choice == "17": network_scanner_sim_cli()
-        elif choice == "18": email_bomber_sim_cli()
-        elif choice == "19": webcam_hacking_simulator_cli()
-        elif choice == "20": ransomware_simulation_cli()
-        elif choice == "21": custom_exploit_development_sim_cli()
-        elif choice == "22": reverse_shell_sim_cli()
-        elif choice == "23": advanced_keylogger_sim_cli()
-        elif choice == "24": vulnerability_scanner_sim_cli()
-        elif choice == "25": pentesting_framework_sim_cli()
-        elif choice == "26": botnet_development_sim_cli()
-        elif choice == "27": advanced_malware_simulation_cli()
-        elif choice == "28": advanced_dns_spoofing_cli()
-        elif choice == "29": fileless_malware_sim_cli()
-        elif choice == "30": automated_osint_tool_sim_cli()
+        if choice == "1":
+            run_feature(keylogger)
+        elif choice == "2":
+            run_feature(port_scanner)
+        elif choice == "3":
+            run_feature(password_generator)
+        elif choice == "4":
+            run_feature(brute_force_dummy)
+        elif choice == "5":
+            run_feature(caesar_cipher)
+        elif choice == "6":
+            run_feature(website_crawler)
+        elif choice == "7":
+            run_feature(mac_changer_dummy)
+        elif choice == "8":
+            run_feature(ping_tester)
+        elif choice == "9":
+            run_feature(ip_locator)
+        elif choice == "10":
+            run_feature(screenshot_taker)
+        elif choice == "11":
+            run_feature(packet_sniffer_sim_cli)
+        elif choice == "12":
+            run_feature(arp_spoofer_sim_cli)
+        elif choice == "13":
+            run_feature(subdomain_finder_sim_cli)
+        elif choice == "14":
+            run_feature(sql_injection_simulator_cli)
+        elif choice == "15":
+            run_feature(dns_spoofer_sim_cli)
+        elif choice == "16":
+            run_feature(steganography_tool_sim_cli)
+        elif choice == "17":
+            run_feature(network_scanner_sim_cli)
+        elif choice == "18":
+            run_feature(email_bomber_sim_cli)
+        elif choice == "19":
+            run_feature(webcam_hacking_simulator_cli)
+        elif choice == "20":
+            run_feature(ransomware_simulation_cli)
+        elif choice == "21":
+            run_feature(custom_exploit_development_sim_cli)
+        elif choice == "22":
+            run_feature(reverse_shell_sim_cli)
+        elif choice == "23":
+            run_feature(advanced_keylogger_sim_cli)
+        elif choice == "24":
+            run_feature(vulnerability_scanner_sim_cli)
+        elif choice == "25":
+            run_feature(pentesting_framework_sim_cli)
+        elif choice == "26":
+            run_feature(botnet_development_sim_cli)
+        elif choice == "27":
+            run_feature(advanced_malware_simulation_cli)
+        elif choice == "28":
+            run_feature(advanced_dns_spoofing_cli)
+        elif choice == "29":
+            run_feature(fileless_malware_sim_cli)
+        elif choice == "30":
+            run_feature(automated_osint_tool_sim_cli)
         elif choice == "0":
-            print("Terima kasih telah menggunakan CYBER TOOLS. Sampai jumpa!")
+            print(GREEN + "Terima kasih telah menggunakan CYBER TOOLS. Sampai jumpa!" + RESET)
             break
 
         else:
-            print("Pilihan tidak valid. Silakan coba lagi.")
+            print(RED + "Pilihan tidak valid. Silakan coba lagi." + RESET)
+            pause()
 
 if __name__ == "__main__":
+    clear_screen()
+    loading()
+    time.sleep(0.3)
     menu()

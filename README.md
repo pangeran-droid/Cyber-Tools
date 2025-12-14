@@ -19,6 +19,18 @@ Cyber Tools adalah koleksi alat siber edukasi dan simulasi yang dirancang untuk 
 
 ---
 
+## 📸 Preview Aplikasi
+
+<p align="center">
+  <img src="assets/example.png" width="800">
+</p>
+
+<p align="center">
+  <i>Tampilan CLI Cyber Tools</i>
+</p>
+
+---
+
 ## ⚙️ Instalasi
 
 ### Windows
