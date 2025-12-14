@@ -22,11 +22,11 @@ Cyber Tools adalah koleksi alat siber edukasi dan simulasi yang dirancang untuk 
 ## 📸 Preview Aplikasi
 
 <p align="center">
-  <img src="assets/example.png" width="800">
+  <img src="assets/example.png">
 </p>
 
 <p align="center">
-  <i>Tampilan CLI Cyber Tools</i>
+  <i>Example CLI Tools</i>
 </p>
 
 ---
